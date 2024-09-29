@@ -1,27 +1,19 @@
 package com.example.medico.controller;
+
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-import javax.swing.text.html.parser.Entity;
-import org.springframework.web.bind.annotation.PutMapping;
 
 import com.example.medico.model.Cita;
 import com.example.medico.service.CitaService;
 
-
-
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
 @RequestMapping("/citas")
@@ -33,27 +25,48 @@ public class CitaController {
     private CitaService citaService;
 
     @GetMapping
-    public List<Cita> getCitaAllCitas() {
+    public ResponseEntity<List<EntityModel<Cita>>> getAllCitas() {
         log.info("GET/citas");
         log.info("retorna todas las citas ");
-        return citaService.getAllCitas();
+        List<Cita> citas = citaService.getAllCitas();
+        List<EntityModel<Cita>> citasModel = citas.stream()
+                .map(cita -> EntityModel.of(cita,
+                        WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).withSelfRel(),
+                        WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).withRel("citas")))
+                .toList();
+        return ResponseEntity.ok(citasModel);
     }
+
     @PostMapping
-    public Cita createCita(@RequestBody Cita cita){
+    public ResponseEntity<EntityModel<Cita>> createCita(@RequestBody Cita cita) {
         log.info("POST/citas");
-        log.info("crea una cita  ");
-        return citaService.createCita(cita);
+        log.info("crea una cita");
+        Cita nuevaCita = citaService.createCita(cita);
+        EntityModel<Cita> citaModel = EntityModel.of(nuevaCita,
+                WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).withSelfRel(),
+                WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).withRel("citas"));
+
+        return ResponseEntity.created(WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).toUri())
+                .body(citaModel);
     }
+
     @DeleteMapping("/{id}")
-    public void deleteCita(@PathVariable Long id){
-        log.info("GET/citas/{id}");
-        log.info("retorna una cita por id  ");
-         citaService.deleteCita(id);
+    public ResponseEntity<?> deleteCita(@PathVariable Long id) {
+        log.info("DELETE/citas/{id}");
+        citaService.deleteCita(id);
+        return ResponseEntity.noContent().build();
     }
+
     @GetMapping("/info")
-    public List<Map<String, String>> getAllHoraCitaAndDisponibilidades() {
+    public ResponseEntity<List<EntityModel<Map<String, String>>>> getAllHoraCitaAndDisponibilidades() {
         log.info("GET/citas/info");
-        log.info("retorna todas las citas y dispobonibilidades   ");
-        return citaService.getAllHoraCitaAndDisponibilidades();
+        log.info("retorna todas las citas y disponibilidades");
+        List<Map<String, String>> citasInfo = citaService.getAllHoraCitaAndDisponibilidades();
+        List<EntityModel<Map<String, String>>> citasInfoModel = citasInfo.stream()
+                .map(info -> EntityModel.of(info,
+                        WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllHoraCitaAndDisponibilidades()).withSelfRel(),
+                        WebMvcLinkBuilder.linkTo(methodOn(CitaController.class).getAllCitas()).withRel("citas")))
+                .toList();
+        return ResponseEntity.ok(citasInfoModel);
     }
 }
